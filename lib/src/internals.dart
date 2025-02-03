@@ -21,24 +21,28 @@ import 'package:xml/xml_events.dart';
 
 import './utils.dart';
 
+/// Modified _Tag class now tracks if a bullet (or number) has been added,
+/// and for ordered lists, holds a counter.
 class _Tag {
-  _Tag(this.name, this.styles, this.overrideStyle);
-
+  _Tag(this.name, this.styles, this.overrideStyle,
+      {this.bulletAdded = false, this.listCounter});
   String name;
   String styles;
   TextStyle? overrideStyle;
+  bool bulletAdded;
+  int? listCounter; // Only used for <ol> tags.
 }
 
-/// This class is at the core of the simple_html_css package . It has most of
-/// the methods required to convert HTML content into Flutter widgets
+/// This class is at the core of the simple_html_css package. It has most of
+/// the methods required to convert HTML content into Flutter widgets.
 class Parser {
   Parser(
-    this.context,
-    String data, {
-    this.defaultTextStyle,
-    this.linksCallback,
-    this.overrideStyleMap,
-  }) {
+      this.context,
+      String data, {
+        this.defaultTextStyle,
+        this.linksCallback,
+        this.overrideStyleMap,
+      }) {
     _events = parseEvents(data);
   }
 
@@ -52,7 +56,7 @@ class Parser {
 
   TextSpan _getTextSpan(String text, String style, TextStyle overrideStyle) {
     final Iterable<String> rules =
-        style.split(';').where((String item) => item.trim().isNotEmpty);
+    style.split(';').where((String item) => item.trim().isNotEmpty);
     TextStyle textStyle = DefaultTextStyle.of(context).style;
     textStyle = textStyle.apply(color: const Color(0xff000000));
     textStyle = textStyle.merge(defaultTextStyle);
@@ -68,40 +72,27 @@ class Parser {
           case 'color':
             textStyle = StyleGenUtils.addFontColor(textStyle, value);
             break;
-
           case 'background-color':
             textStyle = StyleGenUtils.addBgColor(textStyle, value);
             break;
-
           case 'font-weight':
             textStyle = StyleGenUtils.addFontWeight(textStyle, value);
             break;
-
           case 'font-style':
             textStyle = StyleGenUtils.addFontStyle(textStyle, value);
             break;
-
           case 'font-size':
             textStyle = StyleGenUtils.addFontSize(textStyle, value);
             break;
-
           case 'text-decoration':
             textStyle = StyleGenUtils.addTextDecoration(textStyle, value);
             break;
-
           case 'font-family':
             textStyle = StyleGenUtils.addFontFamily(textStyle, value);
             break;
-
           case 'line-height':
             textStyle = StyleGenUtils.addLineHeight(textStyle, value);
             break;
-
-          // dropping partial support for li bullets
-          // case 'list_item':
-          // text = '• ' + text;
-          // break;
-
           case 'visit_link':
             isLink = true;
             link = TextGenUtils.getLink(value);
@@ -133,6 +124,38 @@ class Parser {
     String string = text;
     string = TextGenUtils.strip(string);
     if (string.isEmpty) return const TextSpan(text: '');
+
+    // Look for an open <li> tag that hasn't yet had its bullet/number added.
+    // We search the _stack (which holds all open tags) for the most recent <li>.
+    for (int i = _stack.length - 1; i >= 0; i--) {
+      if (_stack[i].name.toLowerCase() == 'li' && !_stack[i].bulletAdded) {
+        // Search upward for the nearest list container (<ol> or <ul>).
+        bool foundList = false;
+        for (int j = i - 1; j >= 0; j--) {
+          final String ancestor = _stack[j].name.toLowerCase();
+          if (ancestor == 'ol' || ancestor == 'ul') {
+            foundList = true;
+            if (ancestor == 'ol') {
+              // For ordered lists, increment the counter and prefix with "N. "
+              _stack[j].listCounter = (_stack[j].listCounter ?? 0) + 1;
+              // You can adjust the number of spaces after the number to change indentation.
+              string = '${_stack[j].listCounter}.   $string';
+            } else {
+              // Unordered list: prefix with a bullet and some extra space.
+              string = '•   $string';
+            }
+            break;
+          }
+        }
+        if (!foundList) {
+          // Fallback if no list container is found.
+          string = '•   $string';
+        }
+        _stack[i].bulletAdded = true;
+        break;
+      }
+    }
+
     final StringBuffer style = StringBuffer();
     TextStyle textStyle = const TextStyle();
     for (final _Tag tag in _stack) {
@@ -142,7 +165,7 @@ class Parser {
     return _getTextSpan(string, style.toString(), textStyle);
   }
 
-  /// Converts HTML content to a list of [TextSpan] objects
+  /// Converts HTML content to a list of [TextSpan] objects.
   List<TextSpan> parse() {
     List<TextSpan> spans = <TextSpan>[];
     for (final XmlEvent event in _events) {
@@ -168,7 +191,6 @@ class Parser {
               }
               styles = 'font-size: ${h1}px;';
               break;
-
             case 'h2':
               double h2;
               if (defaultFontSize == null) {
@@ -178,7 +200,6 @@ class Parser {
               }
               styles = 'font-size: ${h2}px; font-weight: medium;';
               break;
-
             case 'h3':
               double h3;
               if (defaultFontSize == null) {
@@ -188,7 +209,6 @@ class Parser {
               }
               styles = 'font-size: ${h3}px;';
               break;
-
             case 'h4':
               double h4;
               if (defaultFontSize == null) {
@@ -198,7 +218,6 @@ class Parser {
               }
               styles = 'font-size: ${h4}px; font-weight: medium;';
               break;
-
             case 'h5':
               double h5;
               if (defaultFontSize == null) {
@@ -208,7 +227,6 @@ class Parser {
               }
               styles = 'font-size: ${h5}px; font-weight: bold;';
               break;
-
             case 'h6':
               double h6;
               if (defaultFontSize == null) {
@@ -218,79 +236,57 @@ class Parser {
               }
               styles = 'font-size: ${h6}px; font-weight: bold;';
               break;
-
             case 'b':
               styles = 'font-weight: bold;';
               break;
-
             case 'strong':
               styles = 'font-weight: bold;';
               break;
-
             case 'i':
               styles = 'font-style: italic;';
               break;
-
             case 'em':
               styles = 'font-style: italic;';
               break;
-
             case 'u':
               styles = 'text-decoration: underline;';
               break;
-
             case 'strike':
               styles = 'text-decoration: line-through;';
               break;
-
             case 'del':
               styles = 'text-decoration: line-through;';
               break;
-
             case 's':
               styles = 'text-decoration: line-through;';
               break;
-
             case 'a':
               styles =
-                  '''visit_link:__#TO_GET#__; text-decoration: underline; color: #4287f5;''';
+              '''visit_link:__#TO_GET#__; text-decoration: underline; color: #4287f5;''';
               break;
-
-// dropping partial support for ul-li bullets
-//            case 'li':
-//              styles = 'list_item:ul;';
-//              break;
-//              RichText(
-//                text: TextSpan(
-//                  text:'',
-//                  style: TextStyle(color: Colors.black),
-//                  children: <InlineSpan>[
-//                    WidgetSpan(
-//                        alignment: PlaceholderAlignment.baseline,
-//                        baseline: TextBaseline.alphabetic,
-//                        child: Row(
-//                          crossAxisAlignment: CrossAxisAlignment.start,
-//                          children: <Widget>[
-//                            Text( '• '),
-//                            SizedBox(width: 20,),
-//                            Expanded(child: Text('Example text',)),
-//                          ],
-//                        )
-//                    ),
-//                  ],
-//                ),
-//              )
+            case 'li':
+            // For <li> tags, we don't add an inline style.
+            // The bullet or numbering will be inserted in _handleText.
+              break;
+            case 'ul':
+            case 'ol':
+            // For list containers, you could add extra styles here if desired.
+              break;
           }
 
           for (final XmlEventAttribute attribute in event.attributes) {
             if (attribute.name == 'style') {
               styles = '$styles;${attribute.value}';
             } else if (attribute.name == 'href') {
-              styles = styles.replaceFirst('__#TO_GET#__',
-                  attribute.value.replaceAll(':', '__#COLON#__'));
+              styles = styles.replaceFirst(
+                  '__#TO_GET#__',
+                  attribute.value
+                      .replaceAll(':', '__#COLON#__'));
             }
           }
-          _stack.add(_Tag(event.name, styles, overrideStyles));
+          // When adding the tag to the stack, initialize listCounter to 0 for <ol>.
+          _stack.add(_Tag(event.name, styles, overrideStyles,
+              listCounter: (tagName == 'ol') ? 0 : null));
         } else {
           if (event.name == 'br') {
             spans.add(const TextSpan(text: '\n'));
@@ -298,8 +294,7 @@ class Parser {
         }
       }
 
-      // TODO: see if there is a better way to add space after these tags
-      // maybe use widget spans
+      // Add extra space after certain tags.
       if (event is XmlEndElementEvent) {
         if (event.name == 'p' ||
             event.name == 'h1' ||
@@ -335,7 +330,7 @@ class Parser {
       }
     }
 
-    // removing all extra new line textSpans to avoid space at the bottom
+    // Remove any extra newlines at the bottom.
     if (spans.isNotEmpty) {
       final List<TextSpan> reversed = spans.reversed.toList();
 

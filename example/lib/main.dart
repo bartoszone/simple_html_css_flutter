@@ -10,7 +10,6 @@ class Home extends StatelessWidget {
   Widget build(BuildContext context) {
     const String htmlContent = """
 <body>
-
 <h1 style='color: white; font-size:50px; font-style:italic; background-color: rgb(0,122,255); font-weight:100;)'> Hello word! </h1>
 <h1 style=''>Convert your <span style='color:lightseagreen;'>HTML</span> and <span style='color:dodgerblue'>CSS</span> easily into RichText</h1>
 <p>Lorem ipsum dolor sit, consectetur adipiscing elit. Pellentesque in leo id dui bibendum fringilla in et arcu. In vehicula vel est sed mattis.</p>
@@ -20,7 +19,17 @@ class Home extends StatelessWidget {
 <p style='font-family:times;'>Some different FONT with <span style='background-color:lightcyan;'>this part highlighted</span></p>
 <p>x &lt; 2 &amp;&amp;&nbsp;x &gt; 0</p>
 <div style='line-height:2; font-size:17px'><b style='color: rgb(0,122,255); font-weight:500;'>Finally some line heights.</b> Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque in leo id dui bibendum fringilla in et arcu. In vehicula vel est sed mattis. Duis varius, sem non mattis.</div>
+<ul>
+<li style="color: green;">List item 1</li>
+<li style="color: orange;">List item 2</li>
+<li style="color: purple;">List item 3</li>
+</ul>
 
+<ol>
+<li style="color: green;">Ordered item 1</li>
+<li style="color: orange;">Ordered item 2</li>
+<li style="color: purple;">Ordered item 3</li>
+</ol>
 </body>
 """;
 
